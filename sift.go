@@ -50,7 +50,6 @@ const (
 	// to recurse into directories
 	MaxDirRecursionRoutines = 3
 	SiftConfigFile          = ".sift.conf"
-	SiftVersion             = "0.9.0"
 )
 
 type ConditionType int
@@ -123,6 +122,7 @@ var (
 	options        Options
 	errorLogger    = log.New(os.Stderr, "Error: ", 0)
 	errLineTooLong = errors.New("line too long")
+	buildVersion   = "dev"
 )
 var global = struct {
 	conditions            []Condition

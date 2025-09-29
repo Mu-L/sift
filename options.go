@@ -254,8 +254,8 @@ func (o *Options) LoadDefaults() {
 		o.Zip = false
 	}
 	o.Version = func() {
-		fmt.Printf("sift %s (%s/%s)\n", SiftVersion, runtime.GOOS, runtime.GOARCH)
-		fmt.Println("Copyright (C) 2014-2016 Sven Taute")
+		fmt.Printf("sift %s (%s/%s)\n", buildVersion, runtime.GOOS, runtime.GOARCH)
+		fmt.Println("Copyright (C) 2014-2025 Sven Taute")
 		fmt.Println("")
 		fmt.Println("This program is free software: you can redistribute it and/or modify")
 		fmt.Println("it under the terms of the GNU General Public License as published by")
