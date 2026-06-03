@@ -67,6 +67,7 @@ type Options struct {
 	FilesWithMatches    bool     `short:"l" long:"files-with-matches" description:"list files containing matches"`
 	FilesWithoutMatch   bool     `short:"L" long:"files-without-match" description:"list files containing no match"`
 	FollowSymlinks      bool     `long:"follow" description:"follow symlinks"`
+	NoFollowSymlinks    func()   `long:"no-follow" description:"do not follow symlinks" json:"-"`
 	Git                 bool     `long:"git" description:"respect .gitignore files and skip .git directories"`
 	GroupByFile         bool     `long:"group" description:"group output by file (default: off)"`
 	NoGroupByFile       func()   `long:"no-group" description:"do not group output by file" json:"-"`
@@ -219,6 +220,9 @@ func (o *Options) LoadDefaults() {
 	}
 	o.NoColorFunc = func() {
 		o.Color = "off"
+	}
+	o.NoFollowSymlinks = func() {
+		o.FollowSymlinks = false
 	}
 	o.NoIgnoreCase = func() {
 		o.IgnoreCase = false
@@ -522,8 +526,10 @@ func (o *Options) processConditions() error {
 	conditionDirections := []ConditionType{ConditionPreceded, ConditionFollowed, ConditionSurrounded}
 
 	// parse preceded/followed/surrounded conditions without distance limit
-	conditionArgs := [][]string{o.MatchConditions.Preceded, o.MatchConditions.Followed, o.MatchConditions.Surrounded,
-		o.MatchConditions.NotPreceded, o.MatchConditions.NotFollowed, o.MatchConditions.NotSurrounded}
+	conditionArgs := [][]string{
+		o.MatchConditions.Preceded, o.MatchConditions.Followed, o.MatchConditions.Surrounded,
+		o.MatchConditions.NotPreceded, o.MatchConditions.NotFollowed, o.MatchConditions.NotSurrounded,
+	}
 	for i := range conditionArgs {
 		for _, pattern := range conditionArgs[i] {
 			regex, err := regexp.Compile(o.preparePattern(pattern))
@@ -535,8 +541,10 @@ func (o *Options) processConditions() error {
 	}
 
 	// parse preceded/followed/surrounded conditions with distance limit
-	conditionArgs = [][]string{o.MatchConditions.PrecededWithin, o.MatchConditions.FollowedWithin, o.MatchConditions.SurroundedWithin,
-		o.MatchConditions.NotPrecededWithin, o.MatchConditions.NotFollowedWithin, o.MatchConditions.NotSurroundedWithin}
+	conditionArgs = [][]string{
+		o.MatchConditions.PrecededWithin, o.MatchConditions.FollowedWithin, o.MatchConditions.SurroundedWithin,
+		o.MatchConditions.NotPrecededWithin, o.MatchConditions.NotFollowedWithin, o.MatchConditions.NotSurroundedWithin,
+	}
 	for i := range conditionArgs {
 		for _, arg := range conditionArgs[i] {
 			s := strings.SplitN(arg, ":", 2)
