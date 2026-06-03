@@ -101,9 +101,7 @@ func processReader(reader io.Reader, matchRegexes []*regexp.Regexp, data []byte,
 		// check if file is binary (0x00 found in first 256 bytes)
 		if offset == 0 {
 			s := 256
-			if length < s {
-				s = length
-			}
+			s = min(s, length)
 			for i := 0; i < s; i++ {
 				if data[i] == 0 {
 					resultIsBinary = true
@@ -198,7 +196,7 @@ func processReader(reader io.Reader, matchRegexes []*regexp.Regexp, data []byte,
 		if len(newMatches) > 0 {
 			// if a list option is used exit here if possible
 			if (options.FilesWithMatches || options.FilesWithoutMatch) && !options.Count && len(global.conditions) == 0 {
-				global.resultsChan <- &Result{target: target, matches: []Match{Match{}}}
+				global.resultsChan <- &Result{target: target, matches: []Match{{}}}
 				return nil
 			}
 
@@ -395,7 +393,7 @@ func countLines(data []byte, lastConditionMatch int, matches Matches, conditionM
 	currentMatch := 0
 	currentConditionMatch := lastConditionMatch + 1
 	if currentMatch < len(matches) || currentConditionMatch < len(conditionMatches) {
-		for i := 0; i < validMatchRange; i++ {
+		for i := range validMatchRange {
 			if data[i] == 0xa {
 				for currentMatch < len(matches) && offset+int64(i) >= matches[currentMatch].lineStart {
 					matches[currentMatch].lineno = lineCount
@@ -533,9 +531,7 @@ func getBeforeContextFromFile(target string, offset int64, start int) *string {
 	var contextBeforeStart int
 	infile, _ := os.Open(target)
 	seekPosition := offset + int64(start) - int64(InputBlockSize)
-	if seekPosition < 0 {
-		seekPosition = 0
-	}
+	seekPosition = max(0, seekPosition)
 	count := InputBlockSize
 	if offset == 0 && start < InputBlockSize {
 		count = start
@@ -622,15 +618,19 @@ func processReaderInvertMatch(reader io.Reader, matchRegexes []*regexp.Regexp, t
 		}
 		if !matchFound {
 			if options.FilesWithMatches || options.FilesWithoutMatch {
-				global.resultsChan <- &Result{matches: []Match{Match{}}, target: target}
+				global.resultsChan <- &Result{matches: []Match{{}}, target: target}
 				return nil
 			}
 			m := Match{
 				lineno: linecount,
-				line:   line}
+				line:   line,
+			}
 			matches = append(matches, m)
 
 		}
+	}
+	if err := scanner.Err(); err != nil {
+		return err
 	}
 	result := &Result{matches: matches, target: target}
 	global.resultsChan <- result

@@ -19,7 +19,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net"
 	"os"
 	"os/user"
@@ -30,7 +30,7 @@ import (
 	"strconv"
 	"strings"
 
-	"golang.org/x/crypto/ssh/terminal"
+	"golang.org/x/term"
 )
 
 type Options struct {
@@ -278,7 +278,7 @@ func (o *Options) LoadDefaults() {
 
 // loadConfigFile loads options from the given config file.
 func (o *Options) loadConfigFile(configFilePath string, label string) {
-	configFile, err := ioutil.ReadFile(configFilePath)
+	configFile, err := os.ReadFile(configFilePath)
 	if err == nil && len(configFile) > 0 {
 		if err := json.Unmarshal(configFile, &o); err != nil {
 			errorLogger.Printf("cannot parse %s '%s': %s\n", label, configFilePath, err)
@@ -342,7 +342,7 @@ func (o *Options) Apply(patterns []string, targets []string) error {
 	o.performAutoDetections(patterns, targets)
 
 	if o.Quiet {
-		global.outputFile = ioutil.Discard
+		global.outputFile = io.Discard
 	}
 
 	if o.OnlyMatching {
@@ -749,7 +749,7 @@ func (o *Options) processConfigOptions() error {
 		if err != nil {
 			return fmt.Errorf("cannot convert config to JSON: %s", err)
 		}
-		if err := ioutil.WriteFile(configFilePath, conf, os.ModePerm); err != nil {
+		if err := os.WriteFile(configFilePath, conf, os.ModePerm); err != nil {
 			return fmt.Errorf("cannot write config file: %s", err)
 		}
 		fmt.Printf("Saved config to '%s'.\n", configFilePath)
@@ -804,7 +804,7 @@ func (o *Options) performAutoDetections(patterns []string, targets []string) {
 	if o.Color == "auto" {
 		// auto activate colored output only if STDOUT is a terminal
 		if o.Output == "" {
-			if runtime.GOOS != "windows" && terminal.IsTerminal(int(os.Stdout.Fd())) {
+			if runtime.GOOS != "windows" && term.IsTerminal(int(os.Stdout.Fd())) {
 				o.Color = "on"
 			} else {
 				o.Color = "off"
@@ -815,7 +815,7 @@ func (o *Options) performAutoDetections(patterns []string, targets []string) {
 	}
 
 	if o.GroupByFile {
-		if !terminal.IsTerminal(int(os.Stdout.Fd())) {
+		if !term.IsTerminal(int(os.Stdout.Fd())) {
 			o.GroupByFile = false
 		}
 	}
