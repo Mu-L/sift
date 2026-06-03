@@ -531,7 +531,7 @@ func getBeforeContextFromFile(target string, offset int64, start int) *string {
 	var contextBeforeStart int
 	infile, _ := os.Open(target)
 	seekPosition := offset + int64(start) - int64(InputBlockSize)
-	seekPosition = max(0, seekPosition)
+	seekPosition = max(int64(0), seekPosition)
 	count := InputBlockSize
 	if offset == 0 && start < InputBlockSize {
 		count = start
