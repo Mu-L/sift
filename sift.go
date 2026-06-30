@@ -34,7 +34,7 @@ import (
 	"github.com/svent/go-flags"
 	"github.com/svent/go-nbreader"
 	"github.com/svent/sift/gitignore"
-	"golang.org/x/crypto/ssh/terminal"
+	"golang.org/x/term"
 )
 
 const (
@@ -124,6 +124,7 @@ var (
 	errLineTooLong = errors.New("line too long")
 	buildVersion   = "dev"
 )
+
 var global = struct {
 	conditions            []Condition
 	filesChan             chan string
@@ -160,9 +161,7 @@ var global = struct {
 // directories via processDirectory.
 func processDirectories() {
 	n := options.Cores
-	if n > MaxDirRecursionRoutines {
-		n = MaxDirRecursionRoutines
-	}
+	n = min(n, MaxDirRecursionRoutines)
 	for i := 0; i < n; i++ {
 		go func() {
 			for dirname := range global.directoryChan {
@@ -378,10 +377,10 @@ func processDirectory(dirname string) {
 // checkShebang checks whether the first line of file matches the given regex
 func checkShebang(regex *regexp.Regexp, filepath string) (bool, error) {
 	f, err := os.Open(filepath)
-	defer f.Close()
 	if err != nil {
 		return false, err
 	}
+	defer f.Close()
 	b, err := bufio.NewReader(f).ReadBytes('\n')
 	return regex.Match(b), nil
 }
@@ -626,6 +625,9 @@ func main() {
 			global.matchPatterns = append(global.matchPatterns, pattern)
 
 		}
+		if err := scanner.Err(); err != nil {
+			errorLogger.Fatalln("Error reading pattern file:\n", err)
+		}
 	}
 	if len(global.matchPatterns) == 0 {
 		if len(args) == 0 && !(options.PrintConfig || options.WriteConfig ||
@@ -634,19 +636,19 @@ func main() {
 		}
 		if len(args) > 0 && !options.TargetsOnly {
 			global.matchPatterns = append(global.matchPatterns, args[0])
-			args = args[1:len(args)]
+			args = args[1:]
 		}
 	}
 
 	if len(args) == 0 {
 		// check whether there is input on STDIN
-		if !terminal.IsTerminal(int(os.Stdin.Fd())) {
+		if !term.IsTerminal(int(os.Stdin.Fd())) {
 			targets = []string{"-"}
 		} else {
 			targets = []string{"."}
 		}
 	} else {
-		targets = args[0:len(args)]
+		targets = args[0:]
 	}
 
 	// expand arguments containing patterns on Windows
@@ -661,10 +663,8 @@ func main() {
 			if err == filepath.ErrBadPattern {
 				errorLogger.Fatalf("cannot parse argument '%s': %s\n", t, err)
 			}
-			if expanded != nil {
-				for _, e := range expanded {
-					targetsExpanded = append(targetsExpanded, e)
-				}
+			for _, e := range expanded {
+				targetsExpanded = append(targetsExpanded, e)
 			}
 		}
 		targets = targetsExpanded

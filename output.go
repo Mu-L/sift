@@ -75,7 +75,7 @@ func printByteOffset(m *Match) {
 
 // printMatch prints the context after the previous match, the context before the match and the match itself
 func printMatch(match Match, lastMatch Match, target string, lastPrintedLine *int64) {
-	var matchOutput = match.line
+	matchOutput := match.line
 
 	if !options.InvertMatch {
 		if options.Replace != "" {
@@ -193,7 +193,7 @@ func printMatch(match Match, lastMatch Match, target string, lastPrintedLine *in
 			printColumnNo(&match)
 			printByteOffset(&match)
 			writeOutput("%s%s%s%s\n", firstLine[0:firstLineOffset], global.termHighlightMatch,
-				firstLine[firstLineOffset:len(firstLine)], global.termHighlightReset)
+				firstLine[firstLineOffset:], global.termHighlightReset)
 
 			// lines 2 upto n-1 of multiline match with full highlighting
 			for i := 1; i < len(lines)-1; i++ {
@@ -207,7 +207,7 @@ func printMatch(match Match, lastMatch Match, target string, lastPrintedLine *in
 			printFilename(target, options.FieldSeparator)
 			printLineno(match.lineno+int64(len(lines))-1, options.FieldSeparator)
 			writeOutput("%s%s%s%s%s", global.termHighlightMatch, lastLine[0:lastLineOffset],
-				global.termHighlightReset, lastLine[lastLineOffset:len(lastLine)], options.OutputSeparator)
+				global.termHighlightReset, lastLine[lastLineOffset:], options.OutputSeparator)
 			*lastPrintedLine = match.lineno + int64(len(lines)-1)
 		} else {
 			// single line output in multiline mode or replace option used

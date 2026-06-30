@@ -19,7 +19,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net"
 	"os"
 	"os/user"
@@ -30,7 +30,7 @@ import (
 	"strconv"
 	"strings"
 
-	"golang.org/x/crypto/ssh/terminal"
+	"golang.org/x/term"
 )
 
 type Options struct {
@@ -67,6 +67,7 @@ type Options struct {
 	FilesWithMatches    bool     `short:"l" long:"files-with-matches" description:"list files containing matches"`
 	FilesWithoutMatch   bool     `short:"L" long:"files-without-match" description:"list files containing no match"`
 	FollowSymlinks      bool     `long:"follow" description:"follow symlinks"`
+	NoFollowSymlinks    func()   `long:"no-follow" description:"do not follow symlinks" json:"-"`
 	Git                 bool     `long:"git" description:"respect .gitignore files and skip .git directories"`
 	GroupByFile         bool     `long:"group" description:"group output by file (default: off)"`
 	NoGroupByFile       func()   `long:"no-group" description:"do not group output by file" json:"-"`
@@ -220,6 +221,9 @@ func (o *Options) LoadDefaults() {
 	o.NoColorFunc = func() {
 		o.Color = "off"
 	}
+	o.NoFollowSymlinks = func() {
+		o.FollowSymlinks = false
+	}
 	o.NoIgnoreCase = func() {
 		o.IgnoreCase = false
 	}
@@ -274,7 +278,7 @@ func (o *Options) LoadDefaults() {
 
 // loadConfigFile loads options from the given config file.
 func (o *Options) loadConfigFile(configFilePath string, label string) {
-	configFile, err := ioutil.ReadFile(configFilePath)
+	configFile, err := os.ReadFile(configFilePath)
 	if err == nil && len(configFile) > 0 {
 		if err := json.Unmarshal(configFile, &o); err != nil {
 			errorLogger.Printf("cannot parse %s '%s': %s\n", label, configFilePath, err)
@@ -338,7 +342,7 @@ func (o *Options) Apply(patterns []string, targets []string) error {
 	o.performAutoDetections(patterns, targets)
 
 	if o.Quiet {
-		global.outputFile = ioutil.Discard
+		global.outputFile = io.Discard
 	}
 
 	if o.OnlyMatching {
@@ -522,8 +526,10 @@ func (o *Options) processConditions() error {
 	conditionDirections := []ConditionType{ConditionPreceded, ConditionFollowed, ConditionSurrounded}
 
 	// parse preceded/followed/surrounded conditions without distance limit
-	conditionArgs := [][]string{o.MatchConditions.Preceded, o.MatchConditions.Followed, o.MatchConditions.Surrounded,
-		o.MatchConditions.NotPreceded, o.MatchConditions.NotFollowed, o.MatchConditions.NotSurrounded}
+	conditionArgs := [][]string{
+		o.MatchConditions.Preceded, o.MatchConditions.Followed, o.MatchConditions.Surrounded,
+		o.MatchConditions.NotPreceded, o.MatchConditions.NotFollowed, o.MatchConditions.NotSurrounded,
+	}
 	for i := range conditionArgs {
 		for _, pattern := range conditionArgs[i] {
 			regex, err := regexp.Compile(o.preparePattern(pattern))
@@ -535,8 +541,10 @@ func (o *Options) processConditions() error {
 	}
 
 	// parse preceded/followed/surrounded conditions with distance limit
-	conditionArgs = [][]string{o.MatchConditions.PrecededWithin, o.MatchConditions.FollowedWithin, o.MatchConditions.SurroundedWithin,
-		o.MatchConditions.NotPrecededWithin, o.MatchConditions.NotFollowedWithin, o.MatchConditions.NotSurroundedWithin}
+	conditionArgs = [][]string{
+		o.MatchConditions.PrecededWithin, o.MatchConditions.FollowedWithin, o.MatchConditions.SurroundedWithin,
+		o.MatchConditions.NotPrecededWithin, o.MatchConditions.NotFollowedWithin, o.MatchConditions.NotSurroundedWithin,
+	}
 	for i := range conditionArgs {
 		for _, arg := range conditionArgs[i] {
 			s := strings.SplitN(arg, ":", 2)
@@ -741,7 +749,7 @@ func (o *Options) processConfigOptions() error {
 		if err != nil {
 			return fmt.Errorf("cannot convert config to JSON: %s", err)
 		}
-		if err := ioutil.WriteFile(configFilePath, conf, os.ModePerm); err != nil {
+		if err := os.WriteFile(configFilePath, conf, os.ModePerm); err != nil {
 			return fmt.Errorf("cannot write config file: %s", err)
 		}
 		fmt.Printf("Saved config to '%s'.\n", configFilePath)
@@ -796,7 +804,7 @@ func (o *Options) performAutoDetections(patterns []string, targets []string) {
 	if o.Color == "auto" {
 		// auto activate colored output only if STDOUT is a terminal
 		if o.Output == "" {
-			if runtime.GOOS != "windows" && terminal.IsTerminal(int(os.Stdout.Fd())) {
+			if runtime.GOOS != "windows" && term.IsTerminal(int(os.Stdout.Fd())) {
 				o.Color = "on"
 			} else {
 				o.Color = "off"
@@ -807,7 +815,7 @@ func (o *Options) performAutoDetections(patterns []string, targets []string) {
 	}
 
 	if o.GroupByFile {
-		if !terminal.IsTerminal(int(os.Stdout.Fd())) {
+		if !term.IsTerminal(int(os.Stdout.Fd())) {
 			o.GroupByFile = false
 		}
 	}
